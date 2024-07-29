@@ -8,21 +8,23 @@
  * and/or modify it under the terms of the GNU General Public
  * License (version 2) as published by the FSF - Free Software
  * Foundation
-*/
+ */
 
 #include <shared.h>
 #include <os_net/os_net.h>
 #include "remoted.h"
 #include "state.h"
 
-extern wnotify_t * notify;
+extern wnotify_t *notify;
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void nb_open(netbuffer_t * buffer, int sock, const struct sockaddr_storage * peer_info) {
+void nb_open(netbuffer_t *buffer, int sock, const struct sockaddr_storage *peer_info)
+{
     w_mutex_lock(&mutex);
 
-    if (sock >= buffer->max_fd) {
+    if (sock >= buffer->max_fd)
+    {
         os_realloc(buffer->buffers, sizeof(sockbuffer_t) * (sock + 1), buffer->buffers);
         buffer->max_fd = sock;
     }
@@ -35,11 +37,13 @@ void nb_open(netbuffer_t * buffer, int sock, const struct sockaddr_storage * pee
     w_mutex_unlock(&mutex);
 }
 
-void nb_close(netbuffer_t * buffer, int sock) {
+void nb_close(netbuffer_t *buffer, int sock)
+{
 
     w_mutex_lock(&mutex);
 
-    if (buffer->buffers[sock].bqueue) {
+    if (buffer->buffers[sock].bqueue)
+    {
         bqueue_destroy(buffer->buffers[sock].bqueue);
     }
 
@@ -55,8 +59,9 @@ void nb_close(netbuffer_t * buffer, int sock) {
  * Returns -1 on system call error: recv().
  * Returns 0 if no data was available in the socket.
  * Returns the number of bytes received on success.
-*/
-int nb_recv(netbuffer_t * buffer, int sock) {
+ */
+int nb_recv(netbuffer_t *buffer, int sock)
+{
     long recv_len;
     unsigned long i;
     unsigned long cur_offset;
@@ -64,12 +69,13 @@ int nb_recv(netbuffer_t * buffer, int sock) {
 
     w_mutex_lock(&mutex);
 
-    sockbuffer_t * sockbuf = &buffer->buffers[sock];
+    sockbuffer_t *sockbuf = &buffer->buffers[sock];
     unsigned long data_ext = sockbuf->data_len + receive_chunk;
 
     // Extend data buffer
 
-    if (data_ext > sockbuf->data_size) {
+    if (data_ext > sockbuf->data_size)
+    {
         os_realloc(sockbuf->data, data_ext, sockbuf->data);
         sockbuf->data_size = data_ext;
     }
@@ -78,7 +84,8 @@ int nb_recv(netbuffer_t * buffer, int sock) {
 
     recv_len = recv(sock, sockbuf->data + sockbuf->data_len, receive_chunk, 0);
 
-    if (recv_len <= 0) {
+    if (recv_len <= 0)
+    {
         goto end;
     }
 
@@ -86,10 +93,12 @@ int nb_recv(netbuffer_t * buffer, int sock) {
 
     // Dispatch as most messages as possible
 
-    for (i = 0; i + sizeof(uint32_t) <= sockbuf->data_len; i = cur_offset + cur_len) {
+    for (i = 0; i + sizeof(uint32_t) <= sockbuf->data_len; i = cur_offset + cur_len)
+    {
         cur_len = wnet_order(*(uint32_t *)(sockbuf->data + i));
 
-        if (cur_len > OS_MAXSTR) {
+        if (cur_len > OS_MAXSTR)
+        {
             char hex[OS_SIZE_2048 + 1] = {0};
             print_hex_string(&sockbuf->data[i], sockbuf->data_len - i, hex, sizeof(hex));
             mwarn("Unexpected message (hex): '%s'", hex);
@@ -99,7 +108,8 @@ int nb_recv(netbuffer_t * buffer, int sock) {
 
         cur_offset = i + sizeof(uint32_t);
 
-        if (cur_offset + cur_len > sockbuf->data_len) {
+        if (cur_offset + cur_len > sockbuf->data_len)
+        {
             break;
         }
 
@@ -108,14 +118,17 @@ int nb_recv(netbuffer_t * buffer, int sock) {
 
     // Move remaining data to data start
 
-    if (i > 0) {
-        if (i < sockbuf->data_len) {
+    if (i > 0)
+    {
+        if (i < sockbuf->data_len)
+        {
             memcpy(sockbuf->data, sockbuf->data + i, sockbuf->data_len - i);
         }
 
         sockbuf->data_len -= i;
 
-        switch (buffer_relax) {
+        switch (buffer_relax)
+        {
         case 0:
             // Do not deallocate memory.
             break;
@@ -130,9 +143,12 @@ int nb_recv(netbuffer_t * buffer, int sock) {
             // Full memory deallocation.
             sockbuf->data_size = sockbuf->data_len;
 
-            if (sockbuf->data_size) {
+            if (sockbuf->data_size)
+            {
                 os_realloc(sockbuf->data, sockbuf->data_size, sockbuf->data);
-            } else {
+            }
+            else
+            {
                 os_free(sockbuf->data);
             }
         }
@@ -144,7 +160,8 @@ end:
     return recv_len;
 }
 
-int nb_send(netbuffer_t * buffer, int socket) {
+int nb_send(netbuffer_t *buffer, int socket)
+{
     ssize_t sent_bytes = 0;
 
     char data[send_chunk];
@@ -152,29 +169,36 @@ int nb_send(netbuffer_t * buffer, int socket) {
 
     w_mutex_lock(&mutex);
 
-    if (buffer->buffers[socket].bqueue) {
+    if (buffer->buffers[socket].bqueue)
+    {
 
         ssize_t peeked_bytes = bqueue_peek(buffer->buffers[socket].bqueue, data, send_chunk, BQUEUE_NOFLAG);
-        if (peeked_bytes > 0) {
+        if (peeked_bytes > 0)
+        {
             // Asynchronous sending
             sent_bytes = send(socket, (const void *)data, peeked_bytes, MSG_DONTWAIT);
         }
 
-        if (sent_bytes > 0) {
+        if (sent_bytes > 0)
+        {
             bqueue_drop(buffer->buffers[socket].bqueue, sent_bytes);
-        } else if (sent_bytes < 0) {
-            switch (errno) {
+        }
+        else if (sent_bytes < 0)
+        {
+            switch (errno)
+            {
             case EAGAIN:
-    #if EAGAIN != EWOULDBLOCK
+#if EAGAIN != EWOULDBLOCK
             case EWOULDBLOCK:
-    #endif
+#endif
                 break;
             default:
                 merror("Could not send data to socket %d: %s (%d)", socket, strerror(errno), errno);
             }
         }
 
-        if (!peeked_bytes || bqueue_used(buffer->buffers[socket].bqueue) == 0) {
+        if (!peeked_bytes || bqueue_used(buffer->buffers[socket].bqueue) == 0)
+        {
             wnotify_modify(notify, socket, WO_READ);
         }
     }
@@ -184,42 +208,78 @@ int nb_send(netbuffer_t * buffer, int socket) {
     return sent_bytes;
 }
 
-int nb_queue(netbuffer_t * buffer, int socket, char * crypt_msg, ssize_t msg_size, char * agent_id) {
+int nb_queue(netbuffer_t *buffer, int socket, char *crypt_msg, ssize_t msg_size, char *agent_id)
+{
     int retval = -1;
     int header_size = sizeof(uint32_t);
     char data[msg_size + header_size];
     const uint32_t bytes = wnet_order(msg_size);
 
     memcpy((data + header_size), crypt_msg, msg_size);
-    // Add header at begining, first 4 bytes, it is message msg_size
+    // Add header at beginning, first 4 bytes, it is message msg_size
     memcpy(data, &bytes, header_size);
 
     w_mutex_lock(&mutex);
+    mdebug2("anubhav, Entering nb_queue: key_id=%d, sock=%d, msg_size=%zu", socket, socket, msg_size);
 
-    if (buffer->buffers[socket].bqueue) {
+    if (buffer->buffers[socket].bqueue)
+    {
+        mdebug2("anubhav, Buffer queue exists: key_id=%d, sock=%d, buffer_size=%lu, current_used=%lu",
+                socket, socket,
+                buffer->buffers[socket].bqueue->max_length,
+                buffer->buffers[socket].bqueue->length);
 
-        if (!bqueue_push(buffer->buffers[socket].bqueue, (const void *) data, (size_t)(msg_size + header_size), BQUEUE_NOFLAG)) {
+        if (!bqueue_push(buffer->buffers[socket].bqueue, (const void *)data, (size_t)(msg_size + header_size), BQUEUE_NOFLAG))
+        {
+            mdebug2("anubhav, Initial queue push failed: key_id=%d, sock=%d, buffer_size=%lu, used=%lu, msg_size=%lu",
+                    socket, socket,
+                    buffer->buffers[socket].bqueue->max_length,
+                    buffer->buffers[socket].bqueue->length,
+                    msg_size);
 
-            if (bqueue_used(buffer->buffers[socket].bqueue) == (size_t)(msg_size + header_size)) {
+            if (bqueue_used(buffer->buffers[socket].bqueue) == (size_t)(msg_size + header_size))
+            {
+                mdebug2("anubhav, Buffer size adequate after retry: key_id=%d, sock=%d, buffer_size=%lu, used=%lu",
+                        socket, socket,
+                        buffer->buffers[socket].bqueue->max_length,
+                        buffer->buffers[socket].bqueue->length);
+
                 wnotify_modify(notify, socket, (WO_READ | WO_WRITE));
             }
             retval = 0;
-        } else {
-            mdebug1("Not enough buffer space. Retrying... [buffer_size=%lu, used=%lu, msg_size=%lu]",
-                buffer->buffers[socket].bqueue->max_length, buffer->buffers[socket].bqueue->length, msg_size);
+        }
+        else
+        {
+            mdebug2("anubhav, Not enough buffer space. Retrying... [buffer_size=%lu, used=%lu, msg_size=%lu]",
+                    buffer->buffers[socket].bqueue->max_length, buffer->buffers[socket].bqueue->length, msg_size);
 
             w_mutex_unlock(&mutex);
             sleep(send_timeout_to_retry);
             w_mutex_lock(&mutex);
 
-            if (buffer->buffers[socket].bqueue) {
+            if (buffer->buffers[socket].bqueue)
+            {
+                if (!bqueue_push(buffer->buffers[socket].bqueue, (const void *)data, (size_t)(msg_size + header_size), BQUEUE_NOFLAG))
+                {
+                    mdebug2("anubhav, Retry push successful: key_id=%d, sock=%d, buffer_size=%lu, used=%lu, msg_size=%lu",
+                            socket, socket,
+                            buffer->buffers[socket].bqueue->max_length,
+                            buffer->buffers[socket].bqueue->length,
+                            msg_size);
 
-                if (!bqueue_push(buffer->buffers[socket].bqueue, (const void *) data, (size_t)(msg_size + header_size), BQUEUE_NOFLAG)) {
-
-                    if (bqueue_used(buffer->buffers[socket].bqueue) == (size_t)(msg_size + header_size)) {
+                    if (bqueue_used(buffer->buffers[socket].bqueue) == (size_t)(msg_size + header_size))
+                    {
                         wnotify_modify(notify, socket, (WO_READ | WO_WRITE));
                     }
                     retval = 0;
+                }
+                else
+                {
+                    mdebug2("anubhav, Retry push failed: key_id=%d, sock=%d, buffer_size=%lu, used=%lu, msg_size=%lu",
+                            socket, socket,
+                            buffer->buffers[socket].bqueue->max_length,
+                            buffer->buffers[socket].bqueue->length,
+                            msg_size);
                 }
             }
         }
@@ -227,9 +287,10 @@ int nb_queue(netbuffer_t * buffer, int socket, char * crypt_msg, ssize_t msg_siz
 
     w_mutex_unlock(&mutex);
 
-    if (retval < 0) {
+    if (retval < 0)
+    {
         rem_inc_send_discarded(agent_id);
-        mwarn("Package dropped. Could not append data into buffer.");
+        mwarn("anubhav, Package dropped. Could not append data into buffer.");
     }
 
     return retval;
