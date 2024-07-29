@@ -43,7 +43,8 @@ void key_unlock()
 int check_keyupdate()
 {
     /* Check key for updates */
-    if (!OS_CheckUpdateKeys(&keys)) {
+    if (!OS_CheckUpdateKeys(&keys))
+    {
         return (0);
     }
 
@@ -70,14 +71,16 @@ int send_msg(const char *agent_id, const char *msg, ssize_t msg_length)
     key_lock_read();
     key_id = OS_IsAllowedID(&keys, agent_id);
 
-    if (key_id < 0) {
+    if (key_id < 0)
+    {
         key_unlock();
         merror(AR_NOAGENT_ERROR, agent_id);
         return OS_INVALID;
     }
 
     /* If we don't have the agent id, ignore it */
-    if (keys.keyentries[key_id]->rcvd < (time(0) - logr.global.agents_disconnection_time)) {
+    if (keys.keyentries[key_id]->rcvd < (time(0) - logr.global.agents_disconnection_time))
+    {
         key_unlock();
         mdebug1(SEND_DISCON, keys.keyentries[key_id]->id);
         return OS_INVALID;
@@ -85,7 +88,8 @@ int send_msg(const char *agent_id, const char *msg, ssize_t msg_length)
 
     msg_size = CreateSecMSG(&keys, msg, msg_length < 0 ? strlen(msg) : (size_t)msg_length, crypt_msg, key_id);
 
-    if (msg_size <= 0) {
+    if (msg_size <= 0)
+    {
         key_unlock();
         merror(SEC_ERROR);
         return OS_INVALID;
@@ -96,18 +100,32 @@ int send_msg(const char *agent_id, const char *msg, ssize_t msg_length)
     w_mutex_lock(&keys.keyentries[key_id]->mutex);
 
     /* Send initial message */
-    if (keys.keyentries[key_id]->net_protocol == REMOTED_NET_PROTOCOL_UDP) {
+    if (keys.keyentries[key_id]->net_protocol == REMOTED_NET_PROTOCOL_UDP)
+    {
         /* UDP mode, send the message */
         bytes_sent = sendto(logr.udp_sock, crypt_msg, msg_size, 0, (struct sockaddr *)&keys.keyentries[key_id]->peer_info, logr.peer_size);
         error = errno;
         retval = bytes_sent == msg_size ? OS_SUCCESS : OS_INVALID;
-    } else if (keys.keyentries[key_id]->sock >= 0) {
+    }
+    else if (keys.keyentries[key_id]->sock >= 0)
+    {
         /* TCP mode, enqueue the message in the send buffer */
+        mdebug2("anubhav, TCP mode, enqueue the message in the send buffer starting: key_id=%d, sock=%d, msg_size=%zu",
+                key_id, keys.keyentries[key_id]->sock, msg_size);
+
         retval = nb_queue(&netbuffer_send, keys.keyentries[key_id]->sock, crypt_msg, msg_size, keys.keyentries[key_id]->id);
+
+        mdebug2("anubhav, After nb_queue: retval=%d, key_id=%d, sock=%d, msg_size=%zu, id=%d",
+                retval, key_id, keys.keyentries[key_id]->sock, msg_size, keys.keyentries[key_id]->id);
+
         w_mutex_unlock(&keys.keyentries[key_id]->mutex);
         key_unlock();
+
+        mdebug2("anubhav, Returning from function: retval=%d", retval);
         return retval;
-    } else {
+    }
+    else
+    {
         w_mutex_unlock(&keys.keyentries[key_id]->mutex);
         key_unlock();
         mdebug1("Send operation cancelled due to closed socket.");
@@ -115,8 +133,10 @@ int send_msg(const char *agent_id, const char *msg, ssize_t msg_length)
     }
 
     /* Check UDP send result */
-    if (retval < 0) {
-        switch (error) {
+    if (retval < 0)
+    {
+        switch (error)
+        {
         case 0:
             mwarn(SEND_ERROR " [%d]", agent_id, "A message could not be delivered completely.", keys.keyentries[key_id]->sock);
             break;
@@ -134,7 +154,9 @@ int send_msg(const char *agent_id, const char *msg, ssize_t msg_length)
         default:
             merror(SEND_ERROR " [%d]", agent_id, strerror(error), keys.keyentries[key_id]->sock);
         }
-    } else {
+    }
+    else
+    {
         rem_add_send(bytes_sent);
     }
 
