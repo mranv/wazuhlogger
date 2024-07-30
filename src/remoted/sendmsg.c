@@ -115,7 +115,7 @@ int send_msg(const char *agent_id, const char *msg, ssize_t msg_length)
 
         retval = nb_queue(&netbuffer_send, keys.keyentries[key_id]->sock, crypt_msg, msg_size, keys.keyentries[key_id]->id);
 
-        mdebug2("anubhav, After nb_queue (sendmsg): retval=%d, key_id=%d, sock=%d, msg_size=%zu, id=%s",
+        mdebug2("anubhav, After nb_queue: retval=%d, key_id=%d, sock=%d, msg_size=%zu, id=%d",
                 retval, key_id, keys.keyentries[key_id]->sock, msg_size, keys.keyentries[key_id]->id);
 
         w_mutex_unlock(&keys.keyentries[key_id]->mutex);
