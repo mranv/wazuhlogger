@@ -8,7 +8,7 @@
  * and/or modify it under the terms of the GNU General Public
  * License (version 2) as published by the FSF - Free Software
  * Foundation
-*/
+ */
 
 #include "remoted.h"
 #include "state.h"
@@ -34,7 +34,7 @@ extern OSHash *remoted_agents_state;
  * @param agent_id Id of the agent that corresponds to the node
  * @return remoted_agent_state_t node
  */
-STATIC remoted_agent_state_t * get_node(const char *agent_id);
+STATIC remoted_agent_state_t *get_node(const char *agent_id);
 
 /**
  * @brief Clean non active agents from agents state
@@ -114,21 +114,28 @@ static void rem_inc_agents_send_request(const char *agent_id);
  */
 static void rem_inc_agents_send_discarded(const char *agent_id);
 
-void * rem_state_main() {
+void *rem_state_main()
+{
     int interval = getDefine_Int("remoted", "state_interval", 0, 86400);
 
-    if (!interval) {
+    if (!interval)
+    {
         minfo("State file is disabled.");
         return NULL;
     }
 
     os_calloc(48, sizeof(char), refresh_time);
-    if (interval < 60) {
+    if (interval < 60)
+    {
         snprintf(refresh_time, 48, "Updated every %i seconds.", interval);
-    } else if (interval < 3600) {
-        snprintf(refresh_time, 48, "Updated every %i minutes.", interval/60);
-    } else {
-        snprintf(refresh_time, 48, "Updated every %i hours.", interval/3600);
+    }
+    else if (interval < 3600)
+    {
+        snprintf(refresh_time, 48, "Updated every %i minutes.", interval / 60);
+    }
+    else
+    {
+        snprintf(refresh_time, 48, "Updated every %i hours.", interval / 3600);
     }
 
     mdebug1("State file updating thread started.");
@@ -136,7 +143,8 @@ void * rem_state_main() {
     int sock = -1;
     sock = wdbc_connect();
 
-    while (1) {
+    while (1)
+    {
         rem_write_state();
         sleep(interval);
         w_remoted_clean_agents_state(&sock);
@@ -147,13 +155,15 @@ void * rem_state_main() {
     return NULL;
 }
 
-int rem_write_state() {
-    FILE * fp;
+int rem_write_state()
+{
+    FILE *fp;
     char path[PATH_MAX - 8];
     char path_temp[PATH_MAX + 1];
     remoted_state_t state_cpy;
 
-    if (!strcmp(__local_name, "unset")) {
+    if (!strcmp(__local_name, "unset"))
+    {
         merror("At write_state(): __local_name is unset.");
         return -1;
     }
@@ -163,7 +173,8 @@ int rem_write_state() {
     snprintf(path, sizeof(path), OS_PIDFILE "/%s.state", __local_name);
     snprintf(path_temp, sizeof(path_temp), "%s.temp", path);
 
-    if (fp = fopen(path_temp, "w"), !fp) {
+    if (fp = fopen(path_temp, "w"), !fp)
+    {
         merror(FOPEN_ERROR, path_temp, errno, strerror(errno));
         return -1;
     }
@@ -173,45 +184,47 @@ int rem_write_state() {
     w_mutex_unlock(&state_mutex);
 
     fprintf(fp,
-        "# State file for %s\n"
-        "# THIS FILE WILL BE DEPRECATED IN FUTURE VERSIONS\n"
-        "# %s\n"
-        "\n"
-        "# Queue size\n"
-        "queue_size='%zu'\n"
-        "\n"
-        "# Total queue size\n"
-        "total_queue_size='%zu'\n"
-        "\n"
-        "# TCP sessions\n"
-        "tcp_sessions='%u'\n"
-        "\n"
-        "# Events sent to Analysisd\n"
-        "evt_count='%lu'\n"
-        "\n"
-        "# Control messages received\n"
-        "ctrl_msg_count='%lu'\n"
-        "\n"
-        "# Discarded messages\n"
-        "discarded_count='%u'\n"
-        "\n"
-        "# Total number of bytes sent\n"
-        "sent_bytes='%lu'\n"
-        "\n"
-        "# Total number of bytes received\n"
-        "recv_bytes='%lu'\n"
-        "\n"
-        "# Messages dequeued after the agent closes the connection\n"
-        "dequeued_after_close='%u'\n",
-        __local_name, refresh_time, rem_get_qsize(), rem_get_tsize(), state_cpy.tcp_sessions,
-        state_cpy.recv_breakdown.evt_count, state_cpy.recv_breakdown.ctrl_count, state_cpy.recv_breakdown.discarded_count,
-        state_cpy.sent_bytes, state_cpy.recv_bytes, state_cpy.recv_breakdown.dequeued_count);
+            "# State file for %s\n"
+            "# THIS FILE WILL BE DEPRECATED IN FUTURE VERSIONS\n"
+            "# %s\n"
+            "\n"
+            "# Queue size\n"
+            "queue_size='%zu'\n"
+            "\n"
+            "# Total queue size\n"
+            "total_queue_size='%zu'\n"
+            "\n"
+            "# TCP sessions\n"
+            "tcp_sessions='%u'\n"
+            "\n"
+            "# Events sent to Analysisd\n"
+            "evt_count='%lu'\n"
+            "\n"
+            "# Control messages received\n"
+            "ctrl_msg_count='%lu'\n"
+            "\n"
+            "# Discarded messages\n"
+            "discarded_count='%u'\n"
+            "\n"
+            "# Total number of bytes sent\n"
+            "sent_bytes='%lu'\n"
+            "\n"
+            "# Total number of bytes received\n"
+            "recv_bytes='%lu'\n"
+            "\n"
+            "# Messages dequeued after the agent closes the connection\n"
+            "dequeued_after_close='%u'\n",
+            __local_name, refresh_time, rem_get_qsize(), rem_get_tsize(), state_cpy.tcp_sessions,
+            state_cpy.recv_breakdown.evt_count, state_cpy.recv_breakdown.ctrl_count, state_cpy.recv_breakdown.discarded_count,
+            state_cpy.sent_bytes, state_cpy.recv_bytes, state_cpy.recv_breakdown.dequeued_count);
 
     fclose(fp);
 
-    if (rename(path_temp, path) < 0) {
+    if (rename(path_temp, path) < 0)
+    {
         merror("Renaming %s to %s: %s", path_temp, path, strerror(errno));
-        if (unlink(path_temp) < 0) {
+        if (unlink(path_temp) < 0)
+        {
             merror("Deleting %s: %s", path_temp, strerror(errno));
         }
         return -1;
@@ -220,12 +233,16 @@ int rem_write_state() {
     return 0;
 }
 
-STATIC remoted_agent_state_t * get_node(const char *agent_id) {
-    remoted_agent_state_t * agent_state = (remoted_agent_state_t *) OSHash_Get_ex(remoted_agents_state, agent_id);
+STATIC remoted_agent_state_t *get_node(const char *agent_id)
+{
+    remoted_agent_state_t *agent_state = (remoted_agent_state_t *)OSHash_Get_ex(remoted_agents_state, agent_id);
 
-    if(agent_state != NULL) {
+    if (agent_state != NULL)
+    {
         return agent_state;
-    } else {
+    }
+    else
+    {
         os_calloc(1, sizeof(remoted_agent_state_t), agent_state);
         agent_state->uptime = time(NULL);
         OSHash_Add_ex(remoted_agents_state, agent_id, agent_state);
@@ -233,38 +250,45 @@ STATIC remoted_agent_state_t * get_node(const char *agent_id) {
     }
 }
 
-STATIC void w_remoted_clean_agents_state(int *sock) {
+STATIC void w_remoted_clean_agents_state(int *sock)
+{
     int *active_agents = NULL;
     OSHashNode *hash_node;
     unsigned int inode_it = 0;
 
     hash_node = OSHash_Begin(remoted_agents_state, &inode_it);
 
-    if (hash_node == NULL) {
+    if (hash_node == NULL)
+    {
         return;
     }
 
-    if (active_agents = wdb_get_agents_ids_of_current_node(AGENT_CS_ACTIVE, sock, 0, -1), active_agents == NULL) {
+    if (active_agents = wdb_get_agents_ids_of_current_node(AGENT_CS_ACTIVE, sock, 0, -1), active_agents == NULL)
+    {
         return;
     }
 
     char *agent_id = NULL;
-    remoted_agent_state_t * agent_state = NULL;
+    remoted_agent_state_t *agent_state = NULL;
 
-    while (hash_node) {
+    while (hash_node)
+    {
         agent_id = hash_node->key;
 
         hash_node = OSHash_Next(remoted_agents_state, &inode_it, hash_node);
 
         int exist = 0;
-        for (size_t i = 0; active_agents[i] != -1; i++) {
-            if (atoi(agent_id) == active_agents[i] ) {
+        for (size_t i = 0; active_agents[i] != -1; i++)
+        {
+            if (atoi(agent_id) == active_agents[i])
+            {
                 exist = 1;
                 break;
             }
         }
 
-        if (exist == 0) {
+        if (exist == 0)
+        {
             agent_state = (remoted_agent_state_t *)OSHash_Delete_ex(remoted_agents_state, agent_id);
             os_free(agent_state);
         }
@@ -273,266 +297,476 @@ STATIC void w_remoted_clean_agents_state(int *sock) {
     os_free(active_agents);
     return;
 }
-
-static void rem_inc_agents_recv_evt(const char *agent_id) {
+static void rem_inc_agents_recv_evt(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_recv_evt with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->recv_evt_count++;
+    if (agent_node)
+    {
+        agent_node->recv_evt_count++;
+        mdebug1("Incremented recv_evt_count to %d for agent_id='%s'.", agent_node->recv_evt_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_recv_ctrl(const char *agent_id) {
+static void rem_inc_agents_recv_ctrl(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_recv_ctrl with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->recv_ctrl_count++;
+    if (agent_node)
+    {
+        agent_node->recv_ctrl_count++;
+        mdebug1("Incremented recv_ctrl_count to %d for agent_id='%s'.", agent_node->recv_ctrl_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_recv_ctrl_keepalive(const char *agent_id) {
+static void rem_inc_agents_recv_ctrl_keepalive(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_recv_ctrl_keepalive with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->ctrl_breakdown.keepalive_count++;
+    if (agent_node)
+    {
+        agent_node->ctrl_breakdown.keepalive_count++;
+        mdebug1("Incremented ctrl_breakdown.keepalive_count to %d for agent_id='%s'.", agent_node->ctrl_breakdown.keepalive_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_recv_ctrl_startup(const char *agent_id) {
+static void rem_inc_agents_recv_ctrl_startup(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_recv_ctrl_startup with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->ctrl_breakdown.startup_count++;
+    if (agent_node)
+    {
+        agent_node->ctrl_breakdown.startup_count++;
+        mdebug1("Incremented ctrl_breakdown.startup_count to %d for agent_id='%s'.", agent_node->ctrl_breakdown.startup_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_recv_ctrl_shutdown(const char *agent_id) {
+static void rem_inc_agents_recv_ctrl_shutdown(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_recv_ctrl_shutdown with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->ctrl_breakdown.shutdown_count++;
+    if (agent_node)
+    {
+        agent_node->ctrl_breakdown.shutdown_count++;
+        mdebug1("Incremented ctrl_breakdown.shutdown_count to %d for agent_id='%s'.", agent_node->ctrl_breakdown.shutdown_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_recv_ctrl_request(const char *agent_id) {
+static void rem_inc_agents_recv_ctrl_request(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_recv_ctrl_request with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->ctrl_breakdown.request_count++;
+    if (agent_node)
+    {
+        agent_node->ctrl_breakdown.request_count++;
+        mdebug1("Incremented ctrl_breakdown.request_count to %d for agent_id='%s'.", agent_node->ctrl_breakdown.request_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_send_ack(const char *agent_id) {
+static void rem_inc_agents_send_ack(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_send_ack with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->sent_breakdown.ack_count++;
+    if (agent_node)
+    {
+        agent_node->sent_breakdown.ack_count++;
+        mdebug1("Incremented sent_breakdown.ack_count to %d for agent_id='%s'.", agent_node->sent_breakdown.ack_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_send_shared(const char *agent_id) {
+static void rem_inc_agents_send_shared(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_send_shared with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->sent_breakdown.shared_count++;
+    if (agent_node)
+    {
+        agent_node->sent_breakdown.shared_count++;
+        mdebug1("Incremented sent_breakdown.shared_count to %d for agent_id='%s'.", agent_node->sent_breakdown.shared_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_send_ar(const char *agent_id) {
+static void rem_inc_agents_send_ar(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_send_ar with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->sent_breakdown.ar_count++;
+    if (agent_node)
+    {
+        agent_node->sent_breakdown.ar_count++;
+        mdebug1("Incremented sent_breakdown.ar_count to %d for agent_id='%s'.", agent_node->sent_breakdown.ar_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_send_cfga(const char *agent_id) {
+static void rem_inc_agents_send_cfga(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_send_cfga with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->sent_breakdown.sca_count++;
+    if (agent_node)
+    {
+        agent_node->sent_breakdown.sca_count++;
+        mdebug1("Incremented sent_breakdown.sca_count to %d for agent_id='%s'.", agent_node->sent_breakdown.sca_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_send_request(const char *agent_id) {
+static void rem_inc_agents_send_request(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_send_request with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->sent_breakdown.request_count++;
+    if (agent_node)
+    {
+        agent_node->sent_breakdown.request_count++;
+        mdebug1("Incremented sent_breakdown.request_count to %d for agent_id='%s'.", agent_node->sent_breakdown.request_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-static void rem_inc_agents_send_discarded(const char *agent_id) {
+static void rem_inc_agents_send_discarded(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_agents_send_discarded with agent_id='%s'.", agent_id);
     w_mutex_lock(&agents_state_mutex);
     remoted_agent_state_t *agent_node = get_node(agent_id);
-    agent_node->sent_breakdown.discarded_count++;
+    if (agent_node)
+    {
+        agent_node->sent_breakdown.discarded_count++;
+        mdebug1("Incremented sent_breakdown.discarded_count to %d for agent_id='%s'.", agent_node->sent_breakdown.discarded_count, agent_id);
+    }
+    else
+    {
+        mwarn("Agent node not found for agent_id='%s'.", agent_id);
+    }
     w_mutex_unlock(&agents_state_mutex);
 }
 
-void rem_inc_tcp() {
+void rem_inc_tcp()
+{
+    mdebug1("Entering rem_inc_tcp.");
     w_mutex_lock(&state_mutex);
     remoted_state.tcp_sessions++;
+    mdebug1("Incremented tcp_sessions to %d.", remoted_state.tcp_sessions);
     w_mutex_unlock(&state_mutex);
 }
 
-void rem_dec_tcp() {
+void rem_dec_tcp()
+{
+    mdebug1("Entering rem_dec_tcp.");
     w_mutex_lock(&state_mutex);
     remoted_state.tcp_sessions--;
+    mdebug1("Decremented tcp_sessions to %d.", remoted_state.tcp_sessions);
     w_mutex_unlock(&state_mutex);
 }
 
-void rem_add_recv(unsigned long bytes) {
+void rem_add_recv(unsigned long bytes)
+{
+    mdebug1("Entering rem_add_recv with bytes=%lu.", bytes);
     w_mutex_lock(&state_mutex);
     remoted_state.recv_bytes += bytes;
+    mdebug1("Added %lu bytes to recv_bytes, new value is %lu.", bytes, remoted_state.recv_bytes);
     w_mutex_unlock(&state_mutex);
 }
 
-void rem_inc_recv_evt(const char *agent_id) {
+void rem_inc_recv_evt(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_recv_evt with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.evt_count++;
+    mdebug1("Incremented recv_breakdown.evt_count to %d.", remoted_state.recv_breakdown.evt_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_recv_evt(agent_id);
     }
 }
 
-void rem_inc_recv_ctrl(const char *agent_id) {
+void rem_inc_recv_ctrl(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_recv_ctrl with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.ctrl_count++;
+    mdebug1("Incremented recv_breakdown.ctrl_count to %d.", remoted_state.recv_breakdown.ctrl_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_recv_ctrl(agent_id);
     }
 }
 
-void rem_inc_recv_ping() {
+void rem_inc_recv_ping()
+{
+    mdebug1("Entering rem_inc_recv_ping.");
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.ping_count++;
+    mdebug1("Incremented recv_breakdown.ping_count to %d.", remoted_state.recv_breakdown.ping_count);
     w_mutex_unlock(&state_mutex);
 }
 
-void rem_inc_recv_unknown() {
+void rem_inc_recv_unknown()
+{
+    mdebug1("Entering rem_inc_recv_unknown.");
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.unknown_count++;
+    mdebug1("Incremented recv_breakdown.unknown_count to %d.", remoted_state.recv_breakdown.unknown_count);
     w_mutex_unlock(&state_mutex);
 }
 
-void rem_inc_recv_dequeued() {
+void rem_inc_recv_dequeued()
+{
+    mdebug1("Entering rem_inc_recv_dequeued.");
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.dequeued_count++;
+    mdebug1("Incremented recv_breakdown.dequeued_count to %d.", remoted_state.recv_breakdown.dequeued_count);
     w_mutex_unlock(&state_mutex);
 }
 
-void rem_inc_recv_discarded() {
+void rem_inc_recv_discarded()
+{
+    mdebug1("Entering rem_inc_recv_discarded.");
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.discarded_count++;
+    mdebug1("Incremented recv_breakdown.discarded_count to %d.", remoted_state.recv_breakdown.discarded_count);
     w_mutex_unlock(&state_mutex);
 }
 
-void rem_inc_recv_ctrl_keepalive(const char *agent_id) {
+void rem_inc_recv_ctrl_keepalive(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_recv_ctrl_keepalive with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.ctrl_breakdown.keepalive_count++;
+    mdebug1("Incremented recv_breakdown.ctrl_breakdown.keepalive_count to %d.", remoted_state.recv_breakdown.ctrl_breakdown.keepalive_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_recv_ctrl_keepalive(agent_id);
     }
 }
 
-void rem_inc_recv_ctrl_startup(const char *agent_id) {
+void rem_inc_recv_ctrl_startup(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_recv_ctrl_startup with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.ctrl_breakdown.startup_count++;
+    mdebug1("Incremented recv_breakdown.ctrl_breakdown.startup_count to %d.", remoted_state.recv_breakdown.ctrl_breakdown.startup_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_recv_ctrl_startup(agent_id);
     }
 }
 
-void rem_inc_recv_ctrl_shutdown(const char *agent_id) {
+void rem_inc_recv_ctrl_shutdown(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_recv_ctrl_shutdown with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.ctrl_breakdown.shutdown_count++;
+    mdebug1("Incremented recv_breakdown.ctrl_breakdown.shutdown_count to %d.", remoted_state.recv_breakdown.ctrl_breakdown.shutdown_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_recv_ctrl_shutdown(agent_id);
     }
 }
 
-void rem_inc_recv_ctrl_request(const char *agent_id) {
+void rem_inc_recv_ctrl_request(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_recv_ctrl_request with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.recv_breakdown.ctrl_breakdown.request_count++;
+    mdebug1("Incremented recv_breakdown.ctrl_breakdown.request_count to %d.", remoted_state.recv_breakdown.ctrl_breakdown.request_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_recv_ctrl_request(agent_id);
     }
 }
 
-void rem_add_send(unsigned long bytes) {
+void rem_add_send(unsigned long bytes)
+{
+    mdebug1("Entering rem_add_send with bytes=%lu.", bytes);
     w_mutex_lock(&state_mutex);
     remoted_state.sent_bytes += bytes;
+    mdebug1("Added %lu bytes to sent_bytes, new value is %lu.", bytes, remoted_state.sent_bytes);
     w_mutex_unlock(&state_mutex);
 }
 
-void rem_inc_send_ack(const char *agent_id) {
+void rem_inc_send_ack(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_send_ack with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.sent_breakdown.ack_count++;
+    mdebug1("Incremented sent_breakdown.ack_count to %d.", remoted_state.sent_breakdown.ack_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_send_ack(agent_id);
     }
 }
 
-void rem_inc_send_shared(const char *agent_id) {
+void rem_inc_send_shared(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_send_shared with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.sent_breakdown.shared_count++;
+    mdebug1("Incremented sent_breakdown.shared_count to %d.", remoted_state.sent_breakdown.shared_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_send_shared(agent_id);
     }
 }
 
-void rem_inc_send_ar(const char *agent_id) {
+void rem_inc_send_ar(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_send_ar with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.sent_breakdown.ar_count++;
+    mdebug1("Incremented sent_breakdown.ar_count to %d.", remoted_state.sent_breakdown.ar_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_send_ar(agent_id);
     }
 }
 
-void rem_inc_send_cfga(const char *agent_id) {
+void rem_inc_send_cfga(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_send_cfga with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.sent_breakdown.sca_count++;
+    mdebug1("Incremented sent_breakdown.sca_count to %d.", remoted_state.sent_breakdown.sca_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
         rem_inc_agents_send_cfga(agent_id);
     }
 }
 
-void rem_inc_send_request(const char *agent_id) {
+void rem_inc_send_request(const char *agent_id)
+{
+    mdebug1("anubhav, Entering rem_inc_send_request function.");
+
     w_mutex_lock(&state_mutex);
+
     remoted_state.sent_breakdown.request_count++;
+    mdebug1("anubhav, Incremented request_count to %d.", remoted_state.sent_breakdown.request_count);
+
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
+        mdebug1("anubhav, Agent ID provided: %s. Incrementing agent send request count.", agent_id);
         rem_inc_agents_send_request(agent_id);
     }
+    else
+    {
+        mdebug1("anubhav, No agent ID provided. Skipping agent send request count increment.");
+    }
+
+    mdebug1("anubhav, Exiting rem_inc_send_request function.");
 }
 
-void rem_inc_send_discarded(const char *agent_id) {
+void rem_inc_send_discarded(const char *agent_id)
+{
+    mdebug1("Entering rem_inc_send_discarded with agent_id='%s'.", agent_id);
     w_mutex_lock(&state_mutex);
     remoted_state.sent_breakdown.discarded_count++;
+    mdebug1("Incremented sent_breakdown.discarded_count to %d.", remoted_state.sent_breakdown.discarded_count);
     w_mutex_unlock(&state_mutex);
 
-    if (agent_id != NULL) {
+    if (agent_id != NULL)
+    {
+        mdebug1("Calling rem_inc_agents_send_discarded with agent_id='%s'.", agent_id);
         rem_inc_agents_send_discarded(agent_id);
+    }
+    else
+    {
+        mwarn("Agent_id is NULL in rem_inc_send_discarded.");
     }
 }
 
-void rem_inc_keys_reload() {
+void rem_inc_keys_reload()
+{
+    mdebug1("Entering rem_inc_keys_reload.");
     w_mutex_lock(&state_mutex);
     remoted_state.keys_reload_count++;
+    mdebug1("Incremented keys_reload_count to %d.", remoted_state.keys_reload_count);
     w_mutex_unlock(&state_mutex);
 }
 
-cJSON* rem_create_state_json() {
+cJSON *rem_create_state_json()
+{
     remoted_state_t state_cpy;
 
     w_mutex_lock(&state_mutex);
@@ -604,8 +838,9 @@ cJSON* rem_create_state_json() {
     return rem_state_json;
 }
 
-cJSON* rem_create_agents_state_json(int* agents_ids) {
-    remoted_agent_state_t * agent_state;
+cJSON *rem_create_agents_state_json(int *agents_ids)
+{
+    remoted_agent_state_t *agent_state;
 
     cJSON *rem_state_json = cJSON_CreateObject();
     cJSON *_array = cJSON_CreateArray();
@@ -615,11 +850,14 @@ cJSON* rem_create_agents_state_json(int* agents_ids) {
 
     w_mutex_lock(&agents_state_mutex);
 
-    if (agents_ids != NULL) {
-        for (int i = 0; agents_ids[i] != -1; i++) {
+    if (agents_ids != NULL)
+    {
+        for (int i = 0; agents_ids[i] != -1; i++)
+        {
             char agent_id[OS_SIZE_16] = {0};
             snprintf(agent_id, OS_SIZE_16, "%.3d", agents_ids[i]);
-            if (agent_state = (remoted_agent_state_t *) OSHash_Get_ex(remoted_agents_state, agent_id), agent_state != NULL) {
+            if (agent_state = (remoted_agent_state_t *)OSHash_Get_ex(remoted_agents_state, agent_id), agent_state != NULL)
+            {
                 cJSON *_item = cJSON_CreateObject();
 
                 cJSON_AddNumberToObject(_item, "uptime", agent_state->uptime);
