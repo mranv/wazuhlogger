@@ -9,19 +9,22 @@
  */
 
 #include <pthread.h>
+#include <errno.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "shared.h"
 #include "remoted.h"
 #include "state.h"
 #include "os_net/os_net.h"
 
-
 /* Start of a new thread. Only returns on unrecoverable errors. */
 void *AR_Forward(__attribute__((unused)) void *arg)
 {
     int arq = 0;
     int ar_location = 0;
-    const char * path = ARQUEUE;
+    const char *path = ARQUEUE;
     char *msg_to_send;
     os_calloc(OS_MAXSTR, sizeof(char), msg_to_send);
     char *msg;
@@ -30,22 +33,26 @@ void *AR_Forward(__attribute__((unused)) void *arg)
     char *tmp_str = NULL;
 
     /* Create the unix queue */
-    if ((arq = StartMQ(path, READ, 0)) < 0) {
+    if ((arq = StartMQ(path, READ, 0)) < 0)
+    {
         merror_exit(QUEUE_ERROR, path, strerror(errno));
     }
 
     /* Daemon loop */
-    while (1) {
-        if (OS_RecvUnix(arq, OS_MAXSTR - 1, msg)) {
+    while (1)
+    {
+        if (OS_RecvUnix(arq, OS_MAXSTR - 1, msg))
+        {
 
-            mdebug2("Active response request received: %s", msg);
+            mdebug2("anubhav ar_forward, Active response request received: %s", msg);
 
             /* Always zero the location */
             ar_location = 0;
 
             /* Location */
             tmp_str = strchr(msg, ')');
-            if (!tmp_str) {
+            if (!tmp_str)
+            {
                 mwarn(EXECD_INV_MSG, msg);
                 continue;
             }
@@ -53,24 +60,30 @@ void *AR_Forward(__attribute__((unused)) void *arg)
 
             /* Source IP */
             tmp_str = strchr(tmp_str, ']');
-            if (!tmp_str) {
+            if (!tmp_str)
+            {
                 mwarn(EXECD_INV_MSG, msg);
                 continue;
             }
             tmp_str += 2;
 
             /* AR location */
-            if (*tmp_str == ALL_AGENTS_C) {
+            if (*tmp_str == ALL_AGENTS_C)
+            {
                 ar_location |= ALL_AGENTS;
             }
             tmp_str++;
-            if (*tmp_str == REMOTE_AGENT_C) {
+            if (*tmp_str == REMOTE_AGENT_C)
+            {
                 ar_location |= REMOTE_AGENT;
-            } else if (*tmp_str == NO_AR_C) {
+            }
+            else if (*tmp_str == NO_AR_C)
+            {
                 ar_location |= NO_AR_MSG;
             }
             tmp_str++;
-            if (*tmp_str == SPECIFIC_AGENT_C) {
+            if (*tmp_str == SPECIFIC_AGENT_C)
+            {
                 ar_location |= SPECIFIC_AGENT;
             }
             tmp_str += 2;
@@ -78,7 +91,8 @@ void *AR_Forward(__attribute__((unused)) void *arg)
             /* Extract the agent id */
             ar_agent_id = tmp_str;
             tmp_str = strchr(tmp_str, ' ');
-            if (!tmp_str) {
+            if (!tmp_str)
+            {
                 mwarn(EXECD_INV_MSG, msg);
                 continue;
             }
@@ -86,32 +100,45 @@ void *AR_Forward(__attribute__((unused)) void *arg)
             tmp_str++;
 
             /* Create the new message */
-            if (ar_location & NO_AR_MSG) {
+            if (ar_location & NO_AR_MSG)
+            {
                 snprintf(msg_to_send, OS_MAXSTR, "%s%s",
                          CONTROL_HEADER,
                          tmp_str);
-            } else {
+            }
+            else
+            {
                 snprintf(msg_to_send, OS_MAXSTR, "%s%s%s",
                          CONTROL_HEADER,
                          EXECD_HEADER,
                          tmp_str);
             }
 
-            mdebug2("Active response sent: %s", msg_to_send);
+            mdebug2("anubhav ar_forward, Active response message to send: %s", msg_to_send);
 
             /* Send to ALL agents */
-            if (ar_location & ALL_AGENTS) {
+            if (ar_location & ALL_AGENTS)
+            {
                 char agent_id[KEYSIZE + 1] = "";
 
                 /* Lock use of keys */
                 key_lock_read();
 
-                for (unsigned int i = 0; i < keys.keysize; i++) {
-                    if (keys.keyentries[i]->rcvd >= (time(0) - logr.global.agents_disconnection_time)) {
+                for (unsigned int i = 0; i < keys.keysize; i++)
+                {
+                    if (keys.keyentries[i]->rcvd >= (time(0) - logr.global.agents_disconnection_time))
+                    {
                         strncpy(agent_id, keys.keyentries[i]->id, KEYSIZE);
                         key_unlock();
-                        if (send_msg(agent_id, msg_to_send, -1) >= 0) {
+                        mdebug2("anubhav ar_forward, Sending active response to agent %s", agent_id);
+                        if (send_msg(agent_id, msg_to_send, -1) >= 0)
+                        {
                             rem_inc_send_ar(agent_id);
+                            mdebug2("anubhav ar_forward, Active response successfully sent to agent %s", agent_id);
+                        }
+                        else
+                        {
+                            merror("anubhav ar_forward, Failed to send active response to agent %s", agent_id);
                         }
                         key_lock_read();
                     }
@@ -121,11 +148,29 @@ void *AR_Forward(__attribute__((unused)) void *arg)
             }
 
             /* Send to the remote agent that generated the event or to a pre-defined agent */
-            else if (ar_location & (REMOTE_AGENT | SPECIFIC_AGENT)) {
-                if (send_msg(ar_agent_id, msg_to_send, -1) >= 0) {
+            else if (ar_location & (REMOTE_AGENT | SPECIFIC_AGENT))
+            {
+                mdebug2("anubhav ar_forward, Sending active response to specific agent %s", ar_agent_id);
+                if (send_msg(ar_agent_id, msg_to_send, -1) >= 0)
+                {
                     rem_inc_send_ar(ar_agent_id);
+                    mdebug2("anubhav ar_forward, Active response successfully sent to agent %s", ar_agent_id);
+                }
+                else
+                {
+                    merror("anubhav ar_forward, Failed to send active response to agent %s", ar_agent_id);
                 }
             }
         }
+        else
+        {
+            mdebug2("anubhav ar_forward, No message received from Unix queue. Continuing loop...");
+        }
     }
+
+    /* Clean up */
+    free(msg_to_send);
+    free(msg);
+
+    return NULL;
 }

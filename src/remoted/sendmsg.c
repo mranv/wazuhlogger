@@ -110,18 +110,18 @@ int send_msg(const char *agent_id, const char *msg, ssize_t msg_length)
     else if (keys.keyentries[key_id]->sock >= 0)
     {
         /* TCP mode, enqueue the message in the send buffer */
-        mdebug2("anubhav, TCP mode, enqueue the message in the send buffer starting: key_id=%d, sock=%d, msg_size=%zu",
+        mdebug2("anubhav, TCP mode, enqueue the message in the send buffer starting (sendmsg): key_id=%d, sock=%d, msg_size=%zu",
                 key_id, keys.keyentries[key_id]->sock, msg_size);
 
         retval = nb_queue(&netbuffer_send, keys.keyentries[key_id]->sock, crypt_msg, msg_size, keys.keyentries[key_id]->id);
 
-        mdebug2("anubhav, After nb_queue: retval=%d, key_id=%d, sock=%d, msg_size=%zu, id=%d",
+        mdebug2("anubhav, After nb_queue (sendmsg): retval=%d, key_id=%d, sock=%d, msg_size=%zu, id=%s",
                 retval, key_id, keys.keyentries[key_id]->sock, msg_size, keys.keyentries[key_id]->id);
 
         w_mutex_unlock(&keys.keyentries[key_id]->mutex);
         key_unlock();
 
-        mdebug2("anubhav, Returning from function: retval=%d", retval);
+        mdebug2("anubhav, Returning from function (sendmsg): retval=%d", retval);
         return retval;
     }
     else
