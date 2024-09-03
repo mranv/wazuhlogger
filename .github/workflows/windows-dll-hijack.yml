@@ -61,12 +61,12 @@ jobs:
           python-version-file: ".github/workflows/.python-version"
           architecture: x64
       - name: Download Artifact executables
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: executables
           path: C:\executables\
       - name: Download Artifact configuration files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: configuration
           path: C:\configuration_files\
